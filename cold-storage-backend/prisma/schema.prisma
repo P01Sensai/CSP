@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// Auth & Multi-Tenancy
+// ============================================
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String   // Business name (e.g., "XYZ Cold Storage")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  kisans      Kisan[]
+  rooms       Room[]
+  amadSlips   AmadSlip[]
+  nikasiSlips NikasiSlip[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(WORKER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  amadMade  AmadSlip[] @relation("AmadMaker")
+  amadAppr  AmadSlip[] @relation("AmadChecker")
+  nikMade   NikasiSlip[] @relation("NikasiMaker")
+  nikAppr   NikasiSlip[] @relation("NikasiChecker")
+
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER    // Has full access, can approve slips (Checker)
+  MUNIM    // PC Operator, creates slips (Maker)
+  WORKER   // General staff
+}
+
+// ============================================
+// Core Entities
+// ============================================
+
+model Kisan {
+  id            String   @id @default(uuid())
+  tenantId      String
+  accountNumber String   // Khata number
+  name          String
+  fatherName    String
+  village       String
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  amadSlips   AmadSlip[]
+  nikasiSlips NikasiSlip[]
+
+  @@unique([tenantId, accountNumber])
+  @@map("kisans")
+}
+
+model Room {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String   // e.g., "Chamber 1"
+  capacity      Int      // total slots
+  occupiedSlots Int      @default(0)
+  temperature   Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  amadSlips AmadSlip[]
+
+  @@map("rooms")
+}
+
+// ============================================
+// Transactions (Amad / Nikasi)
+// ============================================
+
+model AmadSlip {
+  id            String     @id @default(uuid())
+  tenantId      String
+  slipNumber    String     // Bill / Slip ID
+  kisanId       String
+  roomId        String
+  slotNumber    String     // Exact slot format "12 | 01/50"
+  totalBags     Int
+  cropType      String
+  weightPerBag  Float?
+  totalWeight   Float?
+  ratePerBag    Float?
+  entryDate     DateTime   @default(now())
+  remarks       String?
+  
+  status        SlipStatus @default(PENDING_APPROVAL)
+  makerId       String
+  checkerId     String?
+  approvedAt    DateTime?
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  kisan         Kisan        @relation(fields: [kisanId], references: [id])
+  room          Room         @relation(fields: [roomId], references: [id])
+  maker         User         @relation("AmadMaker", fields: [makerId], references: [id])
+  checker       User?        @relation("AmadChecker", fields: [checkerId], references: [id])
+  nikasiSlips   NikasiSlip[]
+
+  @@unique([tenantId, slipNumber])
+  @@map("amad_slips")
+}
+
+model NikasiSlip {
+  id            String     @id @default(uuid())
+  tenantId      String
+  slipNumber    String
+  amadSlipId    String
+  kisanId       String
+  bagsRemoved   Int
+  remainingBags Int
+  exitDate      DateTime   @default(now())
+  remarks       String?
+
+  status        SlipStatus @default(PENDING_APPROVAL)
+  makerId       String
+  checkerId     String?
+  approvedAt    DateTime?
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  amadSlip      AmadSlip     @relation(fields: [amadSlipId], references: [id])
+  kisan         Kisan        @relation(fields: [kisanId], references: [id])
+  maker         User         @relation("NikasiMaker", fields: [makerId], references: [id])
+  checker       User?        @relation("NikasiChecker", fields: [checkerId], references: [id])
+
+  @@unique([tenantId, slipNumber])
+  @@map("nikasi_slips")
+}
+
+enum SlipStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}

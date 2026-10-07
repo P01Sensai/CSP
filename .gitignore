@@ -1,0 +1,22 @@
+# Global Ignores
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/
+.DS_Store
+
+# AI Agents
+.agents
+.claude
+.windsurf
+.cursor
+.cline
+.roo
+.gemini
+
+# Internal Docs & Agent Files
+.agents/
+*.md
+!README.md
