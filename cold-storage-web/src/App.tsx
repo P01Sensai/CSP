@@ -51,7 +51,22 @@ function Sidebar() {
   );
 }
 
+import { useState } from "react";
+import LoginPage from "./pages/LoginPage";
+
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  if (!isAuthenticated) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="*" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
   return (
     <BrowserRouter>
       <div className="app-layout">

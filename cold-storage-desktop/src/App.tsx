@@ -6,6 +6,7 @@ import AmadPage from "./pages/AmadPage";
 import NikasiPage from "./pages/NikasiPage";
 import KisanPage from "./pages/KisanPage";
 import RoomsPage from "./pages/RoomsPage";
+import LoginPage from "./pages/LoginPage";
 import { startAutoSync } from "./db/syncEngine";
 import { getSyncQueueCount } from "./db/localDb";
 
@@ -89,11 +90,25 @@ function Sidebar() {
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   useEffect(() => {
-    startAutoSync((result) => {
-      console.log(`Sync complete: ${result.synced} synced, ${result.failed} failed`);
-    });
-  }, []);
+    if (isAuthenticated) {
+      startAutoSync((result) => {
+        console.log(`Sync complete: ${result.synced} synced, ${result.failed} failed`);
+      });
+    }
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="*" element={<LoginPage onLogin={() => setIsAuthenticated(true)} isDesktop={true} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
 
   return (
     <BrowserRouter>
